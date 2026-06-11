@@ -1064,6 +1064,14 @@ function drawHUD(){
   drawHerb(W-100,32,game.time,0,true);
   g.font="bold 19px Trebuchet MS";g.textAlign="left";g.fillStyle="#dff7d0";
   g.fillText("× "+game.herbs,W-82,37);
+  // quest timer (top center)
+  const mm=Math.floor(game.playTime/60),ssv=(""+Math.floor(game.playTime%60)).padStart(2,"0");
+  rrPath(W/2-58,10,116,34,10);g.fillStyle="rgba(20,16,28,0.55)";g.fill();
+  g.textAlign="center";
+  g.font="13px Trebuchet MS";g.fillStyle="rgba(255,233,176,0.7)";
+  g.fillText("TIME",W/2-30,23);
+  g.font="bold 22px Trebuchet MS";g.fillStyle="#ffe9b0";
+  g.fillText(mm+":"+ssv,W/2+14,33);
   if(game.levelIndex===0&&game.playTime<12&&game.state==="play"){
     g.font="14px Trebuchet MS";g.textAlign="center";
     g.fillStyle="rgba(255,255,255,0.75)";
