@@ -39,6 +39,7 @@ const right=()=>keys.ArrowRight||keys.KeyD;
 const jumpHeld=()=>keys.ArrowUp||keys.KeyW||keys.Space;
 const jumpPressed=()=>pressed.ArrowUp||pressed.KeyW||pressed.Space;
 const attackPressed=()=>pressed.KeyJ||pressed.Enter;
+const dashPressed=()=>pressed.ShiftLeft||pressed.ShiftRight||pressed.KeyK;
 const advancePressed=()=>pressed.Enter||pressed.Space||pressed.KeyJ;
 
 // ---------------- audio ----------------
@@ -65,6 +66,7 @@ function tone(f0,f1,dur,type,vol,delay){
 const SFX={
   jump(){tone(260,540,0.16,"square",0.10);},
   sword(){tone(900,180,0.07,"sawtooth",0.07);},
+  dash(){tone(980,260,0.13,"sawtooth",0.09);tone(500,180,0.1,"square",0.05,0.02);},
   stomp(){tone(220,70,0.14,"square",0.16);},
   hit(){tone(330,90,0.12,"square",0.13);},
   splat(){tone(150,40,0.22,"triangle",0.2);},
@@ -178,6 +180,7 @@ const LEVELS=[
              {type:"ketchup",x:1800,min:1650,max:2080},
              {type:"ketchup",x:2700,min:2560,max:2860}],
     herbs:[{x:398,y:345},{x:578,y:280},{x:1328,y:350},{x:1700,y:440},{x:2655,y:300}],
+    dash:{x:940,y:420},
     goal:{x:2890,y:350,w:74,h:130},
   },
   { name:"The Fridge Caverns", sub:"Level 2", theme:"caverns", width:3400,
@@ -193,6 +196,7 @@ const LEVELS=[
              {type:"mustard",x:2650,min:2540,max:2840},
              {type:"ketchup",x:3050,min:2960,max:3200}],
     herbs:[{x:905,y:260},{x:1155,y:300},{x:2370,y:250},{x:2950,y:350},{x:3110,y:270}],
+    dash:{x:2225,y:300},
     goal:{x:3290,y:350,w:74,h:130},
   },
   { name:"The Sauce Keep", sub:"Final Level", theme:"keep", width:2400,
@@ -205,6 +209,7 @@ const LEVELS=[
              {type:"ketchup",x:1150,min:1090,max:1320},
              {type:"mustard",x:1300,min:1100,max:1400}],
     herbs:[{x:345,y:360},{x:750,y:350},{x:1200,y:430}],
+    dash:{x:1120,y:400},
     checkpoint:{x:1430,y:480},
     boss:{x:1900,arenaMin:1520,arenaMax:2130},
     barrier:{x:2140,y:260,w:16,h:220},
@@ -251,10 +256,12 @@ const ENDINGS=[
 ];
 
 // ---------------- game state ----------------
-const game={state:"title",levelIndex:0,herbs:0,playTime:0,time:0,storyIndex:0,endingIndex:0};
+const game={state:"title",levelIndex:0,herbs:0,playTime:0,time:0,storyIndex:0,endingIndex:0,
+  dashMax:0,dashGot:[false,false,false]};
 const player={x:0,y:0,vx:0,vy:0,w:26,h:42,facing:1,onGround:false,
   coyote:0,jumpBuf:0,hearts:3,invuln:0,attackT:0,attackCD:0,attackId:0,
-  dead:false,deadT:0,cpX:0,cpY:0,dustT:0,wasGround:false};
+  dead:false,deadT:0,cpX:0,cpY:0,dustT:0,wasGround:false,
+  dashCharges:0,dashRecharge:0,dashT:0};
 let level=null, camX=0, shakeT=0, shakeMag=0;
 let reveal={t:0};
 
@@ -263,6 +270,7 @@ function shake(t,mag){shakeT=Math.max(shakeT,t);shakeMag=mag;}
 function resetGame(){
   game.herbs=0;game.playTime=0;game.levelIndex=0;
   game.storyIndex=0;game.endingIndex=0;
+  game.dashMax=0;game.dashGot=[false,false,false];
   particles=[];floaties=[];confetti=[];
 }
 function resetPlayer(start){
@@ -270,6 +278,7 @@ function resetPlayer(start){
   player.facing=1;player.onGround=false;player.coyote=0;player.jumpBuf=0;
   player.hearts=3;player.invuln=0;player.attackT=0;player.attackCD=0;
   player.dead=false;player.deadT=0;player.cpX=start.x;player.cpY=start.y;
+  player.dashCharges=game.dashMax;player.dashRecharge=0;player.dashT=0;
 }
 function makeEnemy(d){
   const base={x:d.x,vx:0,vy:0,min:d.min,max:d.max,flash:0,dying:0,dead:false,
@@ -290,6 +299,7 @@ function loadLevel(i){
     solids:L.platforms.map(p=>({...p})),
     enemies:L.enemies.map(makeEnemy),
     herbs:L.herbs.map(h=>({x:h.x,y:h.y,taken:false,seed:Math.random()*6})),
+    dashItem:(L.dash&&!game.dashGot[i])?{x:L.dash.x,y:L.dash.y,taken:false,seed:Math.random()*6}:null,
     goal:L.goal?{...L.goal}:null,
     checkpoint:L.checkpoint||null,cpActive:false,
     boss:L.boss?makeBoss(L.boss):null,
@@ -484,15 +494,32 @@ function updatePlay(dt){
   const dir=(right()?1:0)-(left()?1:0);
   player.vx+=(dir*MOVE-player.vx)*Math.min(1,dt*12);
   if(dir)player.facing=dir;
+  // dash
+  if(player.dashT>0)player.dashT-=dt;
+  if(dashPressed()&&player.dashCharges>0&&player.dashT<=0){
+    player.dashT=0.18;player.dashCharges--;player.dashRecharge=0;
+    player.invuln=Math.max(player.invuln,0.32);
+    SFX.dash();
+    spawnParticles(player.x+13,player.y+21,6,["#9fdcff","#fff"],90,0.3,0,4);
+  }
+  if(game.dashMax>0&&player.dashCharges<game.dashMax){
+    player.dashRecharge+=dt;
+    if(player.dashRecharge>=3){player.dashRecharge=0;player.dashCharges++;}
+  }
   player.coyote=player.onGround?0.1:player.coyote-dt;
   if(jumpPressed())player.jumpBuf=0.12; else player.jumpBuf-=dt;
-  if(player.jumpBuf>0&&player.coyote>0){
+  if(player.jumpBuf>0&&player.coyote>0&&player.dashT<=0){
     player.vy=-JUMPV;player.jumpBuf=0;player.coyote=0;SFX.jump();
     spawnParticles(player.x+13,player.y+player.h,5,["#d8cfa8","#fff"],70,0.3,300,3);
   }
-  const rising=player.vy<0&&!jumpHeld();
-  player.vy+=GRAV*(rising?2.3:1)*dt;
-  player.vy=Math.min(player.vy,900);
+  if(player.dashT>0){
+    player.vx=player.facing*640;player.vy=0;
+    particles.push({x:player.x+13,y:player.y+21,vx:0,vy:0,t:0,life:0.22,grav:0,size:12,color:"rgba(150,220,255,0.45)"});
+  }else{
+    const rising=player.vy<0&&!jumpHeld();
+    player.vy+=GRAV*(rising?2.3:1)*dt;
+    player.vy=Math.min(player.vy,900);
+  }
 
   // attack
   player.attackCD-=dt;
@@ -523,6 +550,19 @@ function updatePlay(dt){
       hb.taken=true;game.herbs++;level.levelHerbs++;SFX.collect();
       spawnParticles(hb.x,bobY,10,["#9af07a","#d6ffb0","#fff"],120,0.5,300,3);
       floaty(hb.x,bobY-14,"+1","#c9ffb0",14);
+    }
+  }
+
+  // dash power-up (Pepper of Haste)
+  const di=level.dashItem;
+  if(di&&!di.taken){
+    const bobY=di.y+Math.sin(t*3+di.seed)*4;
+    if(Math.abs(player.x+13-di.x)<26&&Math.abs(player.y+21-bobY)<34){
+      di.taken=true;game.dashGot[game.levelIndex]=true;
+      game.dashMax++;player.dashCharges++;
+      SFX.checkpoint();
+      spawnParticles(di.x,bobY,16,["#ffb36b","#ff7a2a","#fff"],160,0.6,300,4);
+      floaty(di.x,bobY-16,"DASH +1!  (Shift / K)","#ffc9a0",15);
     }
   }
 
@@ -1057,6 +1097,36 @@ function drawHeart(x,y,s,filled){
   g.restore();
 }
 
+function drawPepperBody(lit){
+  // small chili pepper centred on (0,0); lit=false draws a grey silhouette
+  g.strokeStyle=lit?"#b34a10":"rgba(255,255,255,0.25)";g.lineWidth=2;
+  g.fillStyle=lit?"#ff7a2a":"rgba(255,255,255,0.18)";
+  g.beginPath();
+  g.moveTo(-3,-8);g.bezierCurveTo(8,-8,9,2,4,9);
+  g.bezierCurveTo(1,13,-5,12,-6,6);g.bezierCurveTo(-7,1,-7,-5,-3,-8);
+  g.closePath();g.fill();g.stroke();
+  if(lit){
+    g.fillStyle="rgba(255,255,255,0.45)";
+    g.beginPath();g.ellipse(-2,-2,2,4,0.3,0,7);g.fill();
+  }
+  g.strokeStyle=lit?"#2f7d32":"rgba(255,255,255,0.25)";g.lineWidth=3;
+  g.beginPath();g.moveTo(-2,-8);g.quadraticCurveTo(-1,-13,3,-14);g.stroke();
+}
+function drawPepper(x,y,t,seed){
+  const by=y+Math.sin(t*3+seed)*4;
+  g.fillStyle="rgba(255,170,90,"+(0.2+0.1*Math.sin(t*4+seed))+")";
+  g.beginPath();g.arc(x,by,17+Math.sin(t*4+seed)*3,0,7);g.fill();
+  // speed lines
+  g.strokeStyle="rgba(255,210,150,0.8)";g.lineWidth=2;
+  g.beginPath();g.moveTo(x-17,by-3);g.lineTo(x-10,by-3);g.stroke();
+  g.beginPath();g.moveTo(x-19,by+3);g.lineTo(x-11,by+3);g.stroke();
+  g.save();g.translate(x,by);drawPepperBody(true);g.restore();
+  const sp=(t*2+seed)%1;
+  if(sp<0.5){
+    g.fillStyle="rgba(255,255,255,0.9)";
+    g.fillRect(x+9,by-13,2,6);g.fillRect(x+7,by-11,6,2);
+  }
+}
 function drawHUD(){
   rrPath(10,10,116,40,10);g.fillStyle="rgba(20,16,28,0.55)";g.fill();
   for(let i=0;i<3;i++)drawHeart(20+i*34,17,26,i<player.hearts);
@@ -1064,18 +1134,34 @@ function drawHUD(){
   drawHerb(W-100,32,game.time,0,true);
   g.font="bold 19px Trebuchet MS";g.textAlign="left";g.fillStyle="#dff7d0";
   g.fillText("× "+game.herbs,W-82,37);
-  // quest timer (top center)
+  // quest timer (beside the hearts so the top centre stays free
+  // for the level banner and the boss name)
   const mm=Math.floor(game.playTime/60),ssv=(""+Math.floor(game.playTime%60)).padStart(2,"0");
-  rrPath(W/2-58,10,116,34,10);g.fillStyle="rgba(20,16,28,0.55)";g.fill();
+  rrPath(134,10,104,40,10);g.fillStyle="rgba(20,16,28,0.55)";g.fill();
   g.textAlign="center";
-  g.font="13px Trebuchet MS";g.fillStyle="rgba(255,233,176,0.7)";
-  g.fillText("TIME",W/2-30,23);
-  g.font="bold 22px Trebuchet MS";g.fillStyle="#ffe9b0";
-  g.fillText(mm+":"+ssv,W/2+14,33);
+  g.font="11px Trebuchet MS";g.fillStyle="rgba(255,233,176,0.65)";
+  g.fillText("TIME",186,23);
+  g.font="bold 19px Trebuchet MS";g.fillStyle="#ffe9b0";
+  g.fillText(mm+":"+ssv,186,43);
+  // dash charges
+  if(game.dashMax>0){
+    const wd=58+game.dashMax*26;
+    rrPath(10,56,wd,34,9);g.fillStyle="rgba(20,16,28,0.55)";g.fill();
+    g.font="11px Trebuchet MS";g.textAlign="left";
+    g.fillStyle="rgba(159,220,255,0.75)";
+    g.fillText("DASH",18,77);
+    for(let i=0;i<game.dashMax;i++){
+      const lit=i<player.dashCharges;
+      g.save();g.translate(66+i*26,74);g.scale(0.85,0.85);
+      if(!lit&&i===player.dashCharges)g.globalAlpha=0.25+0.55*(player.dashRecharge/3);
+      drawPepperBody(lit||i===player.dashCharges);
+      g.restore();
+    }
+  }
   if(game.levelIndex===0&&game.playTime<12&&game.state==="play"){
     g.font="14px Trebuchet MS";g.textAlign="center";
     g.fillStyle="rgba(255,255,255,0.75)";
-    g.fillText("A / D move · W / Space jump · J / Enter sword",W/2,H-14);
+    g.fillText("A / D move · W / Space jump · J / Enter sword · Shift dash",W/2,H-14);
   }
 }
 // ============================================================
@@ -1147,7 +1233,7 @@ function drawTitle(t){
   rrPath(W/2-280,288,560,76,12);g.fillStyle="rgba(20,16,28,0.55)";g.fill();
   g.font="15px Trebuchet MS";g.fillStyle="#e8e2d0";
   g.fillText("A / D  or  ← / →  move      W / ↑ / Space  jump      J / Enter  sword",W/2,318);
-  g.fillText("M  toggle sound  ·  best played with sound on",W/2,344);
+  g.fillText("Shift / K  dash (find the Peppers of Haste)  ·  M  sound",W/2,344);
 }
 function drawEnding(t){
   if(game.endingIndex===0){
@@ -1185,6 +1271,7 @@ function drawPlay(){
   if(level.pedestal)drawPedestal(level.pedestal.x,t);
   if(level.barrier&&level.barrier.active)drawBarrier(level.barrier,t);
   for(const hb of level.herbs)if(!hb.taken)drawHerb(hb.x,hb.y,t,hb.seed,false);
+  if(level.dashItem&&!level.dashItem.taken)drawPepper(level.dashItem.x,level.dashItem.y,t,level.dashItem.seed);
   for(const e of level.enemies){
     if(e.type==="ketchup")drawKetchup(e,t);else drawMustard(e,t);
   }

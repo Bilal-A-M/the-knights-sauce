@@ -15,6 +15,7 @@ Open `the-knights-sauce.html` in any modern browser. That's it.
 | A / D or ← / → | Move |
 | W / ↑ / Space | Jump |
 | J / Enter | Sword attack |
+| Shift / K | Dash (requires a Pepper of Haste) |
 | M | Toggle sound |
 
 ## Features
@@ -22,6 +23,7 @@ Open `the-knights-sauce.html` in any modern browser. That's it.
 - 3 short levels + story screens, mini-boss finale, and a mystery reveal ending
 - Stomp or sword rival condiments (Ketchup blobs, Mustard goblins)
 - 3-heart health system, checkpoints, collectible herb sprigs
+- Stackable dash power-up — find the Pepper of Haste hidden in each level
 - Parallax backgrounds and Web Audio sound effects, all generated in code
 
 *No spoilers — the Sauce's identity stays secret until the very end.*
