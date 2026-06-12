@@ -14,8 +14,8 @@ Open `the-knights-sauce.html` in any modern browser. That's it.
 | --- | --- |
 | A / D or ← / → | Move |
 | W / ↑ / Space | Jump |
-| J / Enter | Sword attack |
-| Shift / K | Dash (requires a Pepper of Haste) |
+| J / Enter / Left click | Sword attack |
+| Shift / K / Right click | Dash (requires a Pepper of Haste) |
 | M | Toggle sound |
 
 ## Features

@@ -34,13 +34,19 @@ addEventListener("keydown",e=>{
 });
 addEventListener("keyup",e=>{keys[e.code]=false;});
 addEventListener("blur",()=>{for(const k in keys)keys[k]=false;});
+addEventListener("mousedown",e=>{
+  ensureAudio();
+  if(e.button===0)pressed.MouseAttack=true;
+  if(e.button===2)pressed.MouseDash=true;
+});
+addEventListener("contextmenu",e=>e.preventDefault());
 const left=()=>keys.ArrowLeft||keys.KeyA;
 const right=()=>keys.ArrowRight||keys.KeyD;
 const jumpHeld=()=>keys.ArrowUp||keys.KeyW||keys.Space;
 const jumpPressed=()=>pressed.ArrowUp||pressed.KeyW||pressed.Space;
-const attackPressed=()=>pressed.KeyJ||pressed.Enter;
-const dashPressed=()=>pressed.ShiftLeft||pressed.ShiftRight||pressed.KeyK;
-const advancePressed=()=>pressed.Enter||pressed.Space||pressed.KeyJ;
+const attackPressed=()=>pressed.KeyJ||pressed.Enter||pressed.MouseAttack;
+const dashPressed=()=>pressed.ShiftLeft||pressed.ShiftRight||pressed.KeyK||pressed.MouseDash;
+const advancePressed=()=>pressed.Enter||pressed.Space||pressed.KeyJ||pressed.MouseAttack;
 
 // ---------------- audio ----------------
 let AC=null;
@@ -1180,7 +1186,7 @@ function drawHUD(){
   if(game.levelIndex===0&&game.playTime<12&&game.state==="play"){
     g.font="14px Trebuchet MS";g.textAlign="center";
     g.fillStyle="rgba(255,255,255,0.75)";
-    g.fillText("A / D move · W / Space jump · J / Enter sword · Shift dash",W/2,H-14);
+    g.fillText("A / D move · W / Space jump · Left Click sword · Right Click dash",W/2,H-14);
   }
 }
 // ============================================================
@@ -1251,8 +1257,8 @@ function drawTitle(t){
   g.fillText("Press Enter to Begin",W/2,250);
   rrPath(W/2-280,288,560,76,12);g.fillStyle="rgba(20,16,28,0.55)";g.fill();
   g.font="15px Trebuchet MS";g.fillStyle="#e8e2d0";
-  g.fillText("A / D  or  ← / →  move      W / ↑ / Space  jump      J / Enter  sword",W/2,318);
-  g.fillText("Shift / K  dash (find the Peppers of Haste)  ·  M  sound",W/2,344);
+  g.fillText("A / D  or  ← / →  move      W / ↑ / Space  jump      J / Enter / Left Click  sword",W/2,318);
+  g.fillText("Shift / K / Right Click  dash (find the Peppers of Haste)  ·  M  sound",W/2,344);
 }
 function drawEnding(t){
   if(game.endingIndex===0){
